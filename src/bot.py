@@ -1,6 +1,10 @@
 import telebot
+from src.model.api import MatchCoverAPI
 
-BOT = telebot.TeleBot("TOKEN")
+
+TOKEN = "TOKEN"
+BOT = telebot.TeleBot(TOKEN)
+model = MatchCoverAPI("facebook/deit-tiny-distilled-patch16-224")
 
 
 def predict(picture):
@@ -12,6 +16,8 @@ def get_picture(message):
     BOT.send_message(message.from_user.id, "Сейчас подумаю")
     predict(message.photo)
     BOT.send_message(message.from_user.id, "Вот что получилось:")
+    file_path = BOT.get_file(message.photo[-1].file_id).file_path
+    file_url = f"https://api.telegram.org/file/bot{TOKEN}/{file_path}"
     file_id = message.photo[-1].file_id
     BOT.send_photo(message.from_user.id, file_id)
 

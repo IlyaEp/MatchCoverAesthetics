@@ -4,7 +4,7 @@ import numpy as np
 from typing import Dict, List, Optional
 from PIL import Image
 from transformers import AutoModel, AutoFeatureExtractor
-from utils import SongRetrieval
+from src.model.utils import SongRetrieval
 
 
 class MatchCoverAPI:
