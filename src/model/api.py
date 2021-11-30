@@ -20,15 +20,21 @@ class MatchCoverAPI:
         inputs = self.feature_extractor(images=image, return_tensors="pt").to(self.device)
         return self.model(**inputs).pooler_output
 
-    def fit(self, images: List[Dict[str, str]]):
-        with torch.no_grad():
-            embeddings = []
-            ids = []
-            for image in images:
-                embedding = self.forward(image["url"])
-                embeddings.append(embedding.cpu().detach().numpy().ravel())
-                ids.append(image["id"])
-            self.retriever.fit(np.asarray(embeddings), ids)
+    def fit(self, images: List[Dict[str, str]], index_fname: Optional[str] = None):
+        if index_fname:
+            self.retriever.read_file(
+                index_fname, [f"{image['track_artists']} - {image['track_name']}" for image in images]
+            )
+        else:
+            with torch.no_grad():
+                embeddings = []
+                ids = []
+
+                for image in images:
+                    embedding = self.forward(image["album_cover"])
+                    embeddings.append(embedding.cpu().detach().numpy().ravel())
+                    ids.append(f"{image['track_artists']} - {image['track_name']}")
+                self.retriever.fit(np.asarray(embeddings), ids)
 
     def predict(self, image_url: str, n_songs: int) -> List[str]:
         with torch.no_grad():

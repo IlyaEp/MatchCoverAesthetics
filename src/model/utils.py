@@ -13,7 +13,12 @@ class SongRetrieval:
         self._index.add(embeddings)
         self._labels = np.asarray(labels)
 
+    def read_file(self, index_fname: str, labels: List[str]):
+        self._index = faiss.read_index(index_fname)
+        self._labels = np.asarray(labels)
+
     def predict(self, embedding: np.array, k: int) -> List[str]:
         faiss.normalize_L2(embedding)
+
         _, neighbors_idx = self._index.search(embedding, k)
         return self._labels[neighbors_idx].tolist()[0]
