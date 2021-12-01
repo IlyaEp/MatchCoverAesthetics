@@ -22,9 +22,7 @@ class MatchCoverAPI:
 
     def fit(self, images: List[Dict[str, str]], index_fname: Optional[str] = None):
         if index_fname:
-            self.retriever.read_file(
-                index_fname, [f"{image['track_artists']} - {image['track_name']}" for image in images]
-            )
+            self.retriever.read_file(index_fname, [image["track_id"] for image in images])
         else:
             with torch.no_grad():
                 embeddings = []
@@ -33,7 +31,7 @@ class MatchCoverAPI:
                 for image in images:
                     embedding = self.forward(image["album_cover"])
                     embeddings.append(embedding.cpu().detach().numpy().ravel())
-                    ids.append(f"{image['track_artists']} - {image['track_name']}")
+                    ids.append(image["track_id"])
                 self.retriever.fit(np.asarray(embeddings), ids)
 
     def predict(self, image_url: str, n_songs: int) -> List[str]:

@@ -16,10 +16,27 @@ print("I'm ready")
 
 
 def get_playlist_link(ids_songs: List[str]) -> str:
-    return "\n".join(song for song in ids_songs)
+    import spotipy
+    import spotipy.util as util
+
+    scope = "playlist-modify-public"
+    bot_id = ""
+    client_id = ""
+    client_secret = ""
+
+    token = util.prompt_for_user_token(
+        bot_id, scope, client_id, client_secret, redirect_uri="http://localhost:8888/callback/"
+    )
+    sp = spotipy.Spotify(auth=token)
+
+    playlist_name = "Playlist for you"
+    playlist = sp.user_playlist_create(bot_id, public=True, name=playlist_name)
+    playlist_id = playlist["id"]
+    sp.playlist_add_items(playlist_id, ids_songs)
+    return playlist["external_urls"]["spotify"]
 
 
-@BOT.message_handler(content_types=['photo'])
+@BOT.message_handler(content_types=["photo"])
 def get_picture(message):
     BOT.send_message(message.from_user.id, "Сейчас подумаю")
 
@@ -31,12 +48,13 @@ def get_picture(message):
     BOT.send_message(message.from_user.id, songs)
 
 
-@BOT.message_handler(content_types=['text'])
+@BOT.message_handler(content_types=["text"])
 def start(message):
     if message.text == "/start":
-        BOT.send_message(message.from_user.id, "Привет!\nОтправь картинку, а я подберу для тебя музыку по настроению "
-                                               "картиники")
+        BOT.send_message(
+            message.from_user.id, "Привет!\nОтправь картинку, а я подберу для тебя музыку по настроению " "картиники"
+        )
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     BOT.polling(none_stop=True, interval=0)
