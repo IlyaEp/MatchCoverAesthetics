@@ -1,20 +1,16 @@
 import telebot
-import jsonlines
-from pathlib import Path
-from typing import List
+import spotipy
+from typing import List, Dict
 from src.model.api import MatchCoverAPI
 
 
 TOKEN = "TOKEN"
 BOT = telebot.TeleBot(TOKEN)
 MODEL = MatchCoverAPI("facebook/deit-tiny-distilled-patch16-224")
-MODEL.load_from_disk("../data/")
-
-print("I'm ready")
+USERS: Dict[int, str] = {}
 
 
 def get_playlist_link(ids_songs: List[str]) -> str:
-    import spotipy
 
     scope = "playlist-modify-public"
     bot_id = ""
@@ -35,25 +31,43 @@ def get_playlist_link(ids_songs: List[str]) -> str:
     return playlist["external_urls"]["spotify"]
 
 
-@BOT.message_handler(content_types=["photo"])
 def get_picture(message):
-    BOT.send_message(message.from_user.id, "Сейчас подумаю")
-
+    if message.photo is None:
+        msg = BOT.reply_to(message, "Не, хочу картинку посмотреть")
+        BOT.register_next_step_handler(msg, get_picture)
+        return
     photo = BOT.get_file(message.photo[-1].file_id)
-    file_url = f"https://api.telegram.org/file/bot{TOKEN}/{photo.file_path}"
-    songs = get_playlist_link(MODEL.predict(file_url, 3))
-
-    BOT.send_message(message.from_user.id, "Вот что получилось:")
-    BOT.send_message(message.from_user.id, songs)
+    USERS[message.chat.id] = photo.file_path
+    msg = BOT.reply_to(message, "Cколько песен ты хочешь?")
+    BOT.register_next_step_handler(msg, get_number_of_songs)
 
 
-@BOT.message_handler(content_types=["text"])
+@BOT.message_handler(commands=['start'])
 def start(message):
-    if message.text == "/start":
-        BOT.send_message(
-            message.from_user.id, "Привет!\nОтправь картинку, а я подберу для тебя музыку по настроению " "картиники"
-        )
+    msg = BOT.reply_to(message, "Привет!\nОтправь картинку, а я подберу для тебя музыку по настроению "
+                                "картиники")
+    BOT.send_message(message.from_user.id, "Хочу картинку посмотреть")
+    BOT.register_next_step_handler(msg, get_picture)
+
+
+def get_number_of_songs(message):
+    if str(message.text).isdigit():
+        BOT.send_message(message.from_user.id, "Сейчас подумаю")
+
+        file_url = f"https://api.telegram.org/file/bot{TOKEN}/{USERS[message.chat.id]}"
+        songs = get_playlist_link(MODEL.predict(file_url, int(message.text)))
+
+        msg = BOT.reply_to(message, f"Вот что получилось: {songs}")
+        BOT.register_next_step_handler(msg, get_picture)
+    else:
+        msg = BOT.reply_to(message, "Cколько песен ты хочешь?")
+        BOT.register_next_step_handler(msg, get_number_of_songs)
 
 
 if __name__ == "__main__":
+    MODEL.load_from_disk("../data/")
+    print("I'm ready")
+    BOT.set_my_commands([
+        telebot.types.BotCommand("/start", "Для знакомства"),
+    ])
     BOT.polling(none_stop=True, interval=0)
