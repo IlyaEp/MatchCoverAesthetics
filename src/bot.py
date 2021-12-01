@@ -8,9 +8,7 @@ from src.model.api import MatchCoverAPI
 TOKEN = "TOKEN"
 BOT = telebot.TeleBot(TOKEN)
 MODEL = MatchCoverAPI("facebook/deit-tiny-distilled-patch16-224")
-with jsonlines.open(Path("../data/songs.jsonl")) as reader:
-    train = list(reader)
-    MODEL.fit(train, "../data/2k_songs_album_index")
+MODEL.load_from_disk("../data/")
 
 print("I'm ready")
 
