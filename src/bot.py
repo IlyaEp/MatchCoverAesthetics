@@ -17,17 +17,18 @@ print("I'm ready")
 
 def get_playlist_link(ids_songs: List[str]) -> str:
     import spotipy
-    import spotipy.util as util
 
     scope = "playlist-modify-public"
     bot_id = ""
     client_id = ""
     client_secret = ""
 
-    token = util.prompt_for_user_token(
-        bot_id, scope, client_id, client_secret, redirect_uri="http://localhost:8888/callback/"
-    )
-    sp = spotipy.Spotify(auth=token)
+    auth_manager = spotipy.SpotifyOAuth(client_id=client_id,
+                                        client_secret=client_secret,
+                                        scope=scope,
+                                        redirect_uri='http://localhost:8888/callback/')
+
+    sp = spotipy.Spotify(auth_manager=auth_manager)
 
     playlist_name = "Playlist for you"
     playlist = sp.user_playlist_create(bot_id, public=True, name=playlist_name)
