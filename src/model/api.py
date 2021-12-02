@@ -17,13 +17,14 @@ class MatchCoverAPI:
         self.feature_extractor = AutoFeatureExtractor.from_pretrained(model_name_or_path)
         self.retriever = SongRetriever(dim=self.model.config.hidden_size)
 
-    def forward(self, image_url: str) -> torch.FloatTensor:
+    def forward(self, image_url: str) -> torch.Tensor:
         """
         This methods loads image from given URL, passes it through model and returns pooler output as embedding.
         """
-        image = Image.open(requests.get(image_url, stream=True).raw)
+        with Image.open(requests.get(image_url, stream=True).raw) as image:
+            image = image.convert("RGB")  # model expects image to have 3 channels
         inputs = self.feature_extractor(images=image, return_tensors="pt").to(self.device)
-        return self.model(**inputs).pooler_output
+        return torch.mean(self.model(**inputs).last_hidden_state, dim=1)
 
     def fit(self, in_file_path: str, out_file_path: str, use_playlist: bool = True):
         """
@@ -38,11 +39,18 @@ class MatchCoverAPI:
         with jsonlines.open(in_file_path, mode="r") as reader:
             images = list(reader)
         for image in tqdm(images, total=len(images), desc="Constructing embeddings for given songs"):
-            image["embedding"] = self.forward(image[f"{'playlist' if use_playlist else 'album'}_cover"]).cpu().detach()
-            results.append(image)
+            try:
+                image["embedding"] = (
+                    self.forward(image[f"{'playlist' if use_playlist else 'album'}_cover"]).cpu().detach()
+                )
+                results.append(image)
+            except Exception as e:  # various problems with input image are possible (e.g. url is expired)
+                print(image)
+                print(e)
+                continue
         torch.save(results, out_file_path)
 
-    def load_from_disk(self, root_dir: str):
+    def load_from_disk(self, root_dir: str, use_playlists: bool = True):
         """
         This method loads all pickled files from given directory and constructs index for neighbors search.
         """
@@ -50,6 +58,18 @@ class MatchCoverAPI:
         for fname in tqdm(os.listdir(root_dir), total=len(os.listdir(root_dir)), desc="Reading data files"):
             cur_data = torch.load(os.path.join(root_dir, fname))
             data.extend(cur_data)
+
+        if use_playlists:
+            images = {}
+            for image in data:
+                if image["track_id"] in images:
+                    images[image["track_id"]].append(image["embedding"])
+                else:
+                    images[image["track_id"]] = [image["embedding"]]
+            for image in images:
+                images[image] = torch.mean(torch.stack(images[image]), dim=0)
+            data = [{"track_id": track_id, "embedding": images[track_id]} for track_id in images]
+
         self.retriever.load_from_dict(data)
 
     def predict(self, image_url: str, n_songs: int) -> List[str]:
