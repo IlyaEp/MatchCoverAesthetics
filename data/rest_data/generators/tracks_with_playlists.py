@@ -2,8 +2,13 @@ import spotipy
 from spotipy.oauth2 import SpotifyClientCredentials
 import json
 
-sp = spotipy.Spotify(auth_manager=SpotifyClientCredentials(client_id="efe92dae05ec4fb5838724f9389e30a5",
-                                                           client_secret="b515f27d598949dc96b066ab58085cbc"))
+import credentials as cred
+
+client_id = config.CLIENT_ID
+client_secret = config.CLIENT_SECRET
+
+sp = spotipy.Spotify(auth_manager=SpotifyClientCredentials(client_id=client_id,
+                                                           client_secret=client_secret))
 res = []
 
 list_locales_countries = [("eng_US", "US"), ("eng_GB", "GB"), ("eng_US", None), (None, None)] #eng_US seems to equal to eng_GB

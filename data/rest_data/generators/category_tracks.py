@@ -3,8 +3,11 @@ import spotipy
 from spotipy.oauth2 import SpotifyClientCredentials
 from urllib.error import HTTPError
 from tqdm import tqdm
+import credentials as cred
 
-
+client_id = config.CLIENT_ID
+client_secret = config.CLIENT_SECRET
+    
 def collect_tracks(sp, pl):
     data = []
     tracks = sp.playlist_tracks(pl["id"])
@@ -49,8 +52,8 @@ def collect_tracks(sp, pl):
     return data
 
 
-sp = spotipy.Spotify(auth_manager=SpotifyClientCredentials(client_id="efe92dae05ec4fb5838724f9389e30a5",
-                                                           client_secret="b515f27d598949dc96b066ab58085cbc"))
+sp = spotipy.Spotify(auth_manager=SpotifyClientCredentials(client_id=client_id,
+                                                           client_secret=client_secret))
 res = []
 
 for country in [None, "RU", "US", "GB"]:
