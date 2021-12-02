@@ -2,6 +2,10 @@ import telebot
 import spotipy
 from typing import List, Dict
 from src.model.api import MatchCoverAPI
+import base64
+import requests
+import io
+from PIL import Image
 
 
 TOKEN = "TOKEN"
@@ -11,9 +15,9 @@ MODEL = MatchCoverAPI("facebook/deit-tiny-distilled-patch16-224")
 USERS: Dict[int, str] = {}
 
 
-def get_playlist_link(ids_songs: List[str]) -> str:
+def get_playlist_link(track_ids: List[str], image_url: str) -> str:
 
-    scope = "playlist-modify-public"
+    scope = "playlist-modify-public ugc-image-upload"
     bot_id = ""
     client_id = ""
     client_secret = ""
@@ -27,7 +31,17 @@ def get_playlist_link(ids_songs: List[str]) -> str:
     playlist_name = "Playlist for you"
     playlist = sp.user_playlist_create(bot_id, public=True, name=playlist_name)
     playlist_id = playlist["id"]
-    sp.playlist_add_items(playlist_id, ids_songs)
+    sp.playlist_add_items(playlist_id, track_ids)
+
+    # prepare cover
+    img = Image.open(requests.get(image_url, stream=True).raw)
+    img.thumbnail((256, 256))
+    img_byte_arr = io.BytesIO()
+    img.save(img_byte_arr, format='JPEG')
+    img_byte_arr = img_byte_arr.getvalue()
+    coded_img = base64.b64encode(img_byte_arr)
+
+    sp.playlist_upload_cover_image(playlist_id, coded_img)
     return playlist["external_urls"]["spotify"]
 
 
@@ -51,12 +65,12 @@ def start(message):
 
 
 def get_number_of_songs(message):
-    if str(message.text).isdigit() and int(message.text) > 0:
+    if str(message.text).isdigit() and 0 < int(message.text) <= 100:
         BOT.send_message(message.from_user.id, "Дай мне немного времени...")
 
         file_url = f"https://api.telegram.org/file/bot{TOKEN}/{USERS[message.chat.id]}"
 
-        songs = get_playlist_link(MODEL.predict(file_url, int(message.text)))
+        songs = get_playlist_link(MODEL.predict(file_url, int(message.text)), file_url)
 
         BOT.reply_to(message, f"Готово! Вот что получилось: {songs}")
         msg = BOT.send_message(
@@ -67,7 +81,7 @@ def get_number_of_songs(message):
     else:
         msg = BOT.reply_to(
             message,
-            "Что-то пошло не так 😔 Cколько песен ты хочешь? (я жду от тебя некоторое " "разумное натуральное число)",
+            "Что-то пошло не так 😔 Cколько песен ты хочешь? (я жду от тебя некоторое число от 0 до 100)",
         )
         BOT.register_next_step_handler(msg, get_number_of_songs)
 
