@@ -6,9 +6,10 @@ import base64
 import requests
 import io
 from PIL import Image
+import credentials as cred
 
 
-TOKEN = "TOKEN"
+TOKEN = cred.TELEGRAM_TOKEN
 use_playlists = True
 BOT = telebot.TeleBot(TOKEN)
 pl_model = MatchCoverAPI("facebook/deit-tiny-distilled-patch16-224")
@@ -19,9 +20,9 @@ USERS: Dict[int, str] = {}
 def get_playlist_link(track_ids: List[str], image_url: str) -> str:
 
     scope = "playlist-modify-public ugc-image-upload"
-    bot_id = ""
-    client_id = ""
-    client_secret = ""
+    bot_id = cred.SPOTIFY_BOT_ID
+    client_id = cred.SPOTIFY_CLIENT_ID
+    client_secret = cred.SPOTIFY_CLIENT_SECRET
 
     auth_manager = spotipy.SpotifyOAuth(
         client_id=client_id, client_secret=client_secret, scope=scope, redirect_uri="http://localhost:8888/callback/"
