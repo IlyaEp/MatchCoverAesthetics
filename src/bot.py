@@ -11,7 +11,8 @@ from PIL import Image
 TOKEN = "TOKEN"
 use_playlists = True
 BOT = telebot.TeleBot(TOKEN)
-MODEL = MatchCoverAPI("facebook/deit-tiny-distilled-patch16-224")
+pl_model = MatchCoverAPI("facebook/deit-tiny-distilled-patch16-224")
+alb_model = MatchCoverAPI("facebook/deit-tiny-distilled-patch16-224")
 USERS: Dict[int, str] = {}
 
 
@@ -37,7 +38,7 @@ def get_playlist_link(track_ids: List[str], image_url: str) -> str:
     img = Image.open(requests.get(image_url, stream=True).raw)
     img.thumbnail((256, 256))
     img_byte_arr = io.BytesIO()
-    img.save(img_byte_arr, format='JPEG')
+    img.save(img_byte_arr, format="JPEG")
     img_byte_arr = img_byte_arr.getvalue()
     coded_img = base64.b64encode(img_byte_arr)
 
@@ -69,8 +70,10 @@ def get_number_of_songs(message):
         BOT.send_message(message.from_user.id, "Дай мне немного времени...")
 
         file_url = f"https://api.telegram.org/file/bot{TOKEN}/{USERS[message.chat.id]}"
-
-        songs = get_playlist_link(MODEL.predict(file_url, int(message.text)), file_url)
+        if use_playlists:
+            songs = get_playlist_link(pl_model.predict(file_url, int(message.text)), file_url)
+        else:
+            songs = get_playlist_link(alb_model.predict(file_url, int(message.text)), file_url)
 
         BOT.reply_to(message, f"Готово! Вот что получилось: {songs}")
         msg = BOT.send_message(
@@ -87,7 +90,8 @@ def get_number_of_songs(message):
 
 
 if __name__ == "__main__":
-    MODEL.load_from_disk(f"../data/{'albums' if not use_playlists else 'playlists'}/", use_playlists)
+    pl_model.load_from_disk("../data/playlists.pt")
+    alb_model.load_from_disk("../data/albums.pt")
     print("I'm ready")
     BOT.set_my_commands(
         [
