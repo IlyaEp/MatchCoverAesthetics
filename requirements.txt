@@ -1,0 +1,15 @@
+# spotify api + scraping
+spotipy==2.19.0
+
+# telegram bot
+pytelegrambotapi==4.2.0
+
+# model
+torch==1.10.0
+transformers==4.11.3
+faiss-cpu==1.7.1
+numpy==1.21.2
+
+# utils
+jsonlines
+tqdm
