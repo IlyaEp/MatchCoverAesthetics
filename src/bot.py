@@ -9,15 +9,30 @@ from PIL import Image
 import credentials as cred
 
 
+class Answer:
+    """
+    This class represents user answer.
+    """
+
+    def __init__(self, file_path):
+        self.file_path = file_path
+        self.use_playlists = True
+
+
 TOKEN = cred.TELEGRAM_TOKEN
-use_playlists = True
 BOT = telebot.TeleBot(TOKEN)
-pl_model = MatchCoverAPI("facebook/deit-tiny-distilled-patch16-224")
-alb_model = MatchCoverAPI("facebook/deit-tiny-distilled-patch16-224")
-USERS: Dict[int, str] = {}
+PLAYLIST_MODEL = MatchCoverAPI("facebook/deit-tiny-distilled-patch16-224")
+ALBUM_MODEL = MatchCoverAPI("facebook/deit-tiny-distilled-patch16-224")
+USERS: Dict[int, Answer] = {}
 
 
 def get_playlist_link(track_ids: List[str], image_url: str) -> str:
+    """
+    This function generates a spotify playlist and returns a link to it
+    :param track_ids: ID tracks in spotify
+    :param image_url: link to picture for download
+    :return: link to playlist
+    """
 
     scope = "playlist-modify-public ugc-image-upload"
     bot_id = cred.SPOTIFY_BOT_ID
@@ -48,33 +63,67 @@ def get_playlist_link(track_ids: List[str], image_url: str) -> str:
 
 
 def get_picture(message):
+    """
+    This function is responsible for getting a link to the user's picture.
+    """
     if message.photo is None:
-        msg = BOT.reply_to(message, "Сначала мне нужна картинка 🥺")
+        msg = BOT.reply_to(message, "Мне нужна картинка 🥺")
         BOT.register_next_step_handler(msg, get_picture)
         return
     photo = BOT.get_file(message.photo[-1].file_id)
-    USERS[message.chat.id] = photo.file_path
-    msg = BOT.reply_to(message, "Отлично! Теперь скажи, сколько песен ты хочешь?")
+    USERS[message.chat.id] = Answer(photo.file_path)
+    markup = telebot.types.ReplyKeyboardMarkup(one_time_keyboard=True)
+    markup.add("Альбом", "Плейлист")
+    msg = BOT.reply_to(
+        message, "Отлично! А откуда мне смотреть картинки, из альбомов или из плейлистов?", reply_markup=markup
+    )
+    BOT.register_next_step_handler(msg, get_type_model)
+
+
+def get_type_model(message):
+    """
+    This function is responsible for model selection (album/playlist).
+    """
+    if message.text != "Альбом" and message.text != "Плейлист":
+        markup = telebot.types.ReplyKeyboardMarkup(one_time_keyboard=True)
+        markup.add("Альбом", "Плейлист")
+        msg = BOT.reply_to(
+            message,
+            "Я не знаю такое🙁\nОткуда мне смотреть картинки, из альбомов или из плейлистов?",
+            reply_markup=markup,
+        )
+        BOT.register_next_step_handler(msg, get_type_model)
+        return
+    if message.text == "Альбом":
+        USERS[message.chat.id].use_playlists = False
+    markup = telebot.types.ReplyKeyboardRemove(selective=True)
+    msg = BOT.reply_to(message, "Отлично! Теперь скажи, сколько песен ты хочешь?", reply_markup=markup)
     BOT.register_next_step_handler(msg, get_number_of_songs)
 
 
 @BOT.message_handler(commands=["start"])
 def start(message):
+    """
+    This function handles the start command.
+    """
     msg = BOT.reply_to(
-        message, "Привет ✨\nОтправь картинку, а я сделаю для тебя плейлист с подходящей по настроению " "музыкой 🧙"
+        message, "Привет ✨\nОтправь картинку, а я сделаю для тебя плейлист с подходящей по настроению музыкой 🧙"
     )
     BOT.register_next_step_handler(msg, get_picture)
 
 
 def get_number_of_songs(message):
+    """
+    This function remembers the number of musical compositions that the user requires and calls the model to get the result.
+    """
     if str(message.text).isdigit() and 0 < int(message.text) <= 100:
         BOT.send_message(message.from_user.id, "Дай мне немного времени...")
 
-        file_url = f"https://api.telegram.org/file/bot{TOKEN}/{USERS[message.chat.id]}"
-        if use_playlists:
-            songs = get_playlist_link(pl_model.predict(file_url, int(message.text)), file_url)
+        file_url = f"https://api.telegram.org/file/bot{TOKEN}/{USERS[message.chat.id].file_path}"
+        if USERS[message.chat.id].use_playlists:
+            songs = get_playlist_link(PLAYLIST_MODEL.predict(file_url, int(message.text)), file_url)
         else:
-            songs = get_playlist_link(alb_model.predict(file_url, int(message.text)), file_url)
+            songs = get_playlist_link(ALBUM_MODEL.predict(file_url, int(message.text)), file_url)
 
         BOT.reply_to(message, f"Готово! Вот что получилось: {songs}")
         msg = BOT.send_message(
@@ -91,8 +140,8 @@ def get_number_of_songs(message):
 
 
 if __name__ == "__main__":
-    pl_model.load_from_disk("../data/playlists.pt")
-    alb_model.load_from_disk("../data/albums.pt")
+    PLAYLIST_MODEL.load_from_disk("../data/playlists.pt")
+    ALBUM_MODEL.load_from_disk("../data/albums.pt")
     print("I'm ready")
     BOT.set_my_commands(
         [
