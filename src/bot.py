@@ -11,8 +11,9 @@ import credentials as cred
 
 class Answer:
     """
-    This class represents user answer
+    This class represents user answer.
     """
+
     def __init__(self, file_path):
         self.file_path = file_path
         self.use_playlists = True
@@ -63,29 +64,34 @@ def get_playlist_link(track_ids: List[str], image_url: str) -> str:
 
 def get_picture(message):
     """
-     This function is responsible for getting a link to the user's picture.
+    This function is responsible for getting a link to the user's picture.
     """
     if message.photo is None:
-        msg = BOT.reply_to(message, "Сначала мне нужна картинка 🥺")
+        msg = BOT.reply_to(message, "Мне нужна картинка 🥺")
         BOT.register_next_step_handler(msg, get_picture)
         return
     photo = BOT.get_file(message.photo[-1].file_id)
     USERS[message.chat.id] = Answer(photo.file_path)
     markup = telebot.types.ReplyKeyboardMarkup(one_time_keyboard=True)
     markup.add("Альбом", "Плейлист")
-    msg = BOT.reply_to(message, "Отлично! А откуда мне смотреть картинки из альбомов или из плейлистов?", reply_markup=markup)
+    msg = BOT.reply_to(
+        message, "Отлично! А откуда мне смотреть картинки, из альбомов или из плейлистов?", reply_markup=markup
+    )
     BOT.register_next_step_handler(msg, get_type_model)
 
 
 def get_type_model(message):
     """
-    This feature is per model selection
+    This function is responsible for model selection (album/playlist).
     """
     if message.text != "Альбом" and message.text != "Плейлист":
         markup = telebot.types.ReplyKeyboardMarkup(one_time_keyboard=True)
         markup.add("Альбом", "Плейлист")
-        msg = BOT.reply_to(message, "Я не знаю такое🙁\nОткуда мне смотреть картинки из альбомов или из плейлистов?",
-                           reply_markup=markup)
+        msg = BOT.reply_to(
+            message,
+            "Я не знаю такое🙁\nОткуда мне смотреть картинки, из альбомов или из плейлистов?",
+            reply_markup=markup,
+        )
         BOT.register_next_step_handler(msg, get_type_model)
         return
     if message.text == "Альбом":
@@ -98,10 +104,10 @@ def get_type_model(message):
 @BOT.message_handler(commands=["start"])
 def start(message):
     """
-    This function handles the start command
+    This function handles the start command.
     """
     msg = BOT.reply_to(
-        message, "Привет ✨\nОтправь картинку, а я сделаю для тебя плейлист с подходящей по настроению " "музыкой 🧙"
+        message, "Привет ✨\nОтправь картинку, а я сделаю для тебя плейлист с подходящей по настроению музыкой 🧙"
     )
     BOT.register_next_step_handler(msg, get_picture)
 

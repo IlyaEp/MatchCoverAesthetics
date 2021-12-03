@@ -13,4 +13,3 @@ numpy==1.21.2
 # utils
 jsonlines
 tqdm
-credentials
